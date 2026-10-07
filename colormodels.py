@@ -41,11 +41,10 @@ def _from_hue(h, c, m):
     return ((r + m) * 255, (g + m) * 255, (b + m) * 255)
 
 
-# ---------------- RGB <-> CMYK ----------------
 def rgb_to_cmyk(r, g, b):
     r, g, b = r / 255, g / 255, b / 255
     k = 1 - max(r, g, b)
-    if k >= 1:                      # чистый чёрный
+    if k >= 1:
         return 0.0, 0.0, 0.0, 100.0
     c = (1 - r - k) / (1 - k)
     m = (1 - g - k) / (1 - k)
@@ -60,7 +59,6 @@ def cmyk_to_rgb(c, m, y, k):
             255 * (1 - y) * (1 - k))
 
 
-# ---------------- RGB <-> HSV ----------------
 def rgb_to_hsv(r, g, b):
     r, g, b = r / 255, g / 255, b / 255
     mx, mn = max(r, g, b), min(r, g, b)
@@ -75,7 +73,7 @@ def hsv_to_rgb(h, s, v):
     return _from_hue(h, c, v - c)
 
 
-# ---------------- RGB <-> HLS ----------------
+
 def rgb_to_hls(r, g, b):
     r, g, b = r / 255, g / 255, b / 255
     mx, mn = max(r, g, b), min(r, g, b)
@@ -92,7 +90,6 @@ def hls_to_rgb(h, l, s):
     return _from_hue(h, c, l - c / 2)
 
 
-# ---------------- вспомогательное ----------------
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 

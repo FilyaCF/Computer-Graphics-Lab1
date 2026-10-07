@@ -12,7 +12,6 @@ from tkinter import ttk, colorchooser
 
 import colormodels as cm
 
-# модель -> [(имя компоненты, мин, макс, подпись)]
 MODELS = {
     "RGB": [("R", 0, 255, "Red (красный)"), ("G", 0, 255, "Green (зелёный)"),
             ("B", 0, 255, "Blue (синий)")],
@@ -27,7 +26,7 @@ TITLES = {"RGB": "RGB", "CMYK": "CMYK", "HSV": "HSV", "HLS": "HLS"}
 TO_RGB = {"RGB": lambda *v: v, "CMYK": cm.cmyk_to_rgb,
           "HSV": cm.hsv_to_rgb, "HLS": cm.hls_to_rgb}
 
-PAL = 200          # размер палитры (пиксели)
+PAL = 200
 EPS = 1e-6
 
 
@@ -38,8 +37,8 @@ class App(tk.Tk):
         self.resizable(False, False)
         ttk.Style(self).theme_use("clam")
 
-        self.rgb = [52.0, 152.0, 219.0]   # главное состояние (float 0..255)
-        self.hue = 204.0                  # запоминаем оттенок для серых цветов
+        self.rgb = [52.0, 152.0, 219.0]
+        self.hue = 204.0
         self._lock = False
         self._pal_hue = None
         self.scales, self.entries, self.vars = {}, {}, {}
@@ -48,7 +47,6 @@ class App(tk.Tk):
         self._build_ui()
         self.refresh(None, None)
 
-    # ------------------------------------------------------------ интерфейс
     def _build_ui(self):
         pad = dict(padx=8, pady=6)
         left = ttk.Frame(self)
@@ -56,7 +54,6 @@ class App(tk.Tk):
         right = ttk.Frame(self)
         right.grid(row=0, column=1, sticky="n", **pad)
 
-        # --- предпросмотр и HEX
         self.swatch = tk.Canvas(left, width=PAL + 20, height=60, highlightthickness=1,
                                 highlightbackground="#888")
         self.swatch.grid(row=0, column=0, columnspan=2, pady=(0, 6))
@@ -67,7 +64,6 @@ class App(tk.Tk):
         hex_e.bind("<Return>", self._on_hex)
         hex_e.bind("<FocusOut>", self._on_hex)
 
-        # --- палитра: квадрат S/V + полоса H
         self.sv = tk.Canvas(left, width=PAL, height=PAL, cursor="crosshair",
                             highlightthickness=1, highlightbackground="#888")
         self.sv.grid(row=2, column=0, columnspan=2, pady=(10, 4))
@@ -90,7 +86,6 @@ class App(tk.Tk):
         ttk.Button(left, text="Выбрать цвет…", command=self._dialog).grid(
             row=4, column=0, columnspan=2, pady=(8, 0), sticky="ew")
 
-        # --- переключатель варианта
         vf = ttk.LabelFrame(right, text="Вариант")
         vf.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         ttk.Radiobutton(vf, text="Чётный: CMYK – RGB – HSV", value="HSV",
@@ -98,7 +93,6 @@ class App(tk.Tk):
         ttk.Radiobutton(vf, text="Нечётный: CMYK – RGB – HLS", value="HLS",
                         variable=self.variant, command=self._switch).grid(sticky="w", padx=6)
 
-        # --- панели моделей
         self.frames = {}
         for i, name in enumerate(("RGB", "CMYK", "HSV", "HLS")):
             fr = ttk.LabelFrame(right, text=TITLES[name])
@@ -128,7 +122,6 @@ class App(tk.Tk):
         self.frames[show].grid()
         self.frames[other].grid_remove()
 
-    # ------------------------------------------------------------ события
     def _read(self, model, final):
         """Читает значения модели из полей ввода; None, если текст некорректен."""
         vals = []
@@ -146,7 +139,7 @@ class App(tk.Tk):
         vals = self._read(model, final)
         if vals is None:
             if final:
-                self.refresh(None, None)    # вернуть последнее корректное значение
+                self.refresh(None, None)
             return
         self.set_from(model, vals, model, "final" if final else "entry")
 
@@ -182,7 +175,6 @@ class App(tk.Tk):
             self.rgb = [float(x) for x in res[0]]
             self.refresh("DLG", None)
 
-    # ------------------------------------------------------------ ядро
     def set_from(self, model, vals, source, kind):
         """Задан цвет в модели model -> пересчитываем RGB и обновляем остальное."""
         if model in ("HSV", "HLS"):
@@ -197,7 +189,7 @@ class App(tk.Tk):
         r, g, b = self.rgb
         hsv = list(cm.rgb_to_hsv(r, g, b))
         if hsv[1] < EPS or hsv[2] < EPS:
-            hsv[0] = self.hue                      # оттенок серого не определён
+            hsv[0] = self.hue
         else:
             self.hue = hsv[0]
         hls = list(cm.rgb_to_hls(r, g, b))
