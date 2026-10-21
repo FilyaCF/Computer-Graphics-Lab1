@@ -4,12 +4,11 @@
     RGB  : R, G, B       0..255
     CMYK : C, M, Y, K    0..100 (%)
     HSV  : H 0..360, S, V 0..100 (%)
-    HLS  : H 0..360, L, S 0..100 (%)
 """
 
 
 def _hue(r, g, b, mx, mn):
-    """Общая формула оттенка для HSV и HLS. r, g, b в диапазоне 0..1."""
+    """Общая формула оттенка для HSV. r, g, b в диапазоне 0..1."""
     d = mx - mn
     if d == 0:
         return 0.0
@@ -41,10 +40,11 @@ def _from_hue(h, c, m):
     return ((r + m) * 255, (g + m) * 255, (b + m) * 255)
 
 
+# ---------------- RGB <-> CMYK ----------------
 def rgb_to_cmyk(r, g, b):
     r, g, b = r / 255, g / 255, b / 255
     k = 1 - max(r, g, b)
-    if k >= 1:
+    if k >= 1:                      # чистый чёрный
         return 0.0, 0.0, 0.0, 100.0
     c = (1 - r - k) / (1 - k)
     m = (1 - g - k) / (1 - k)
@@ -59,6 +59,7 @@ def cmyk_to_rgb(c, m, y, k):
             255 * (1 - y) * (1 - k))
 
 
+# ---------------- RGB <-> HSV ----------------
 def rgb_to_hsv(r, g, b):
     r, g, b = r / 255, g / 255, b / 255
     mx, mn = max(r, g, b), min(r, g, b)
@@ -73,23 +74,7 @@ def hsv_to_rgb(h, s, v):
     return _from_hue(h, c, v - c)
 
 
-
-def rgb_to_hls(r, g, b):
-    r, g, b = r / 255, g / 255, b / 255
-    mx, mn = max(r, g, b), min(r, g, b)
-    h = _hue(r, g, b, mx, mn)
-    l = (mx + mn) / 2
-    d = mx - mn
-    s = 0.0 if d == 0 else d / (1 - abs(2 * l - 1))
-    return h, l * 100, s * 100
-
-
-def hls_to_rgb(h, l, s):
-    l, s = l / 100, s / 100
-    c = (1 - abs(2 * l - 1)) * s
-    return _from_hue(h, c, l - c / 2)
-
-
+# ---------------- вспомогательное ----------------
 def clamp(v, lo, hi):
     return max(lo, min(hi, v))
 

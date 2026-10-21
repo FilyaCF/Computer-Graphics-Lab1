@@ -1,4 +1,4 @@
-"""Лабораторная работа 1. Цветовые модели: CMYK - RGB - HSV / HLS.
+"""Лабораторная работа 1. Цветовые модели: CMYK - RGB - HSV.
 
 Запуск:  python main.py
 Цвет можно задавать тремя способами в каждой модели:
@@ -12,6 +12,7 @@ from tkinter import ttk, colorchooser
 
 import colormodels as cm
 
+# модель -> [(имя компоненты, мин, макс, подпись)]
 MODELS = {
     "RGB": [("R", 0, 255, "Red (красный)"), ("G", 0, 255, "Green (зелёный)"),
             ("B", 0, 255, "Blue (синий)")],
@@ -19,34 +20,32 @@ MODELS = {
              ("Y", 0, 100, "Yellow (жёлтый), %"), ("K", 0, 100, "Key/Black (чёрный), %")],
     "HSV": [("H", 0, 360, "Hue (оттенок), °"), ("S", 0, 100, "Saturation (насыщенность), %"),
             ("V", 0, 100, "Value (яркость), %")],
-    "HLS": [("H", 0, 360, "Hue (оттенок), °"), ("L", 0, 100, "Lightness (светлота), %"),
-            ("S", 0, 100, "Saturation (насыщенность), %")],
 }
-TITLES = {"RGB": "RGB", "CMYK": "CMYK", "HSV": "HSV", "HLS": "HLS"}
-TO_RGB = {"RGB": lambda *v: v, "CMYK": cm.cmyk_to_rgb,
-          "HSV": cm.hsv_to_rgb, "HLS": cm.hls_to_rgb}
+TITLES = {"RGB": "RGB", "CMYK": "CMYK", "HSV": "HSV"}
+TO_RGB = {"RGB": lambda *v: v, "CMYK": cm.cmyk_to_rgb, "HSV": cm.hsv_to_rgb}
 
-PAL = 200
+PAL = 200          # размер палитры (пиксели)
 EPS = 1e-6
 
 
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Цветовые модели: CMYK – RGB – HSV / HLS")
+        self.title("Цветовые модели: CMYK – RGB – HSV")
         self.resizable(False, False)
         ttk.Style(self).theme_use("clam")
 
-        self.rgb = [52.0, 152.0, 219.0]
-        self.hue = 204.0
+        self.rgb = [52.0, 152.0, 219.0]   # главное состояние (float 0..255)
+        self.hue = 204.0                  # запоминаем оттенок для серых цветов
+        self.sat = 74.0                   # и насыщенность для чёрного (V = 0)
         self._lock = False
         self._pal_hue = None
         self.scales, self.entries, self.vars = {}, {}, {}
 
-        self.variant = tk.StringVar(value="HSV")
         self._build_ui()
         self.refresh(None, None)
 
+    # ------------------------------------------------------------ интерфейс
     def _build_ui(self):
         pad = dict(padx=8, pady=6)
         left = ttk.Frame(self)
@@ -54,6 +53,7 @@ class App(tk.Tk):
         right = ttk.Frame(self)
         right.grid(row=0, column=1, sticky="n", **pad)
 
+        # --- предпросмотр и HEX
         self.swatch = tk.Canvas(left, width=PAL + 20, height=60, highlightthickness=1,
                                 highlightbackground="#888")
         self.swatch.grid(row=0, column=0, columnspan=2, pady=(0, 6))
@@ -64,6 +64,7 @@ class App(tk.Tk):
         hex_e.bind("<Return>", self._on_hex)
         hex_e.bind("<FocusOut>", self._on_hex)
 
+        # --- палитра: квадрат S/V + полоса H
         self.sv = tk.Canvas(left, width=PAL, height=PAL, cursor="crosshair",
                             highlightthickness=1, highlightbackground="#888")
         self.sv.grid(row=2, column=0, columnspan=2, pady=(10, 4))
@@ -86,20 +87,13 @@ class App(tk.Tk):
         ttk.Button(left, text="Выбрать цвет…", command=self._dialog).grid(
             row=4, column=0, columnspan=2, pady=(8, 0), sticky="ew")
 
-        vf = ttk.LabelFrame(right, text="Вариант")
-        vf.grid(row=0, column=0, sticky="ew", pady=(0, 6))
-        ttk.Radiobutton(vf, text="Чётный: CMYK – RGB – HSV", value="HSV",
-                        variable=self.variant, command=self._switch).grid(sticky="w", padx=6)
-        ttk.Radiobutton(vf, text="Нечётный: CMYK – RGB – HLS", value="HLS",
-                        variable=self.variant, command=self._switch).grid(sticky="w", padx=6)
-
+        # --- панели моделей
         self.frames = {}
-        for i, name in enumerate(("RGB", "CMYK", "HSV", "HLS")):
+        for i, name in enumerate(("RGB", "CMYK", "HSV")):
             fr = ttk.LabelFrame(right, text=TITLES[name])
-            fr.grid(row=1 + i, column=0, sticky="ew", pady=3)
+            fr.grid(row=i, column=0, sticky="ew", pady=3)
             self.frames[name] = fr
             self._build_model(fr, name)
-        self._switch()
 
     def _build_model(self, parent, model):
         for i, (comp, lo, hi, label) in enumerate(MODELS[model]):
@@ -115,13 +109,7 @@ class App(tk.Tk):
             en.bind("<FocusOut>", lambda _e, m=model: self._on_entry(m, final=True))
             self.scales[(model, i)], self.entries[(model, i)], self.vars[(model, i)] = sc, en, var
 
-    def _switch(self):
-        """Показываем HSV или HLS в зависимости от варианта."""
-        show = self.variant.get()
-        other = "HLS" if show == "HSV" else "HSV"
-        self.frames[show].grid()
-        self.frames[other].grid_remove()
-
+    # ------------------------------------------------------------ события
     def _read(self, model, final):
         """Читает значения модели из полей ввода; None, если текст некорректен."""
         vals = []
@@ -139,7 +127,7 @@ class App(tk.Tk):
         vals = self._read(model, final)
         if vals is None:
             if final:
-                self.refresh(None, None)
+                self.refresh(None, None)    # вернуть последнее корректное значение
             return
         self.set_from(model, vals, model, "final" if final else "entry")
 
@@ -175,10 +163,12 @@ class App(tk.Tk):
             self.rgb = [float(x) for x in res[0]]
             self.refresh("DLG", None)
 
+    # ------------------------------------------------------------ ядро
     def set_from(self, model, vals, source, kind):
         """Задан цвет в модели model -> пересчитываем RGB и обновляем остальное."""
-        if model in ("HSV", "HLS"):
+        if model == "HSV":
             self.hue = vals[0]
+            self.sat = vals[1]            # при V = 0 S не определена: помним введённую
         r, g, b = TO_RGB[model](*vals)
         self.rgb = [cm.clamp(r, 0, 255), cm.clamp(g, 0, 255), cm.clamp(b, 0, 255)]
         self.refresh(source, kind)
@@ -189,14 +179,15 @@ class App(tk.Tk):
         r, g, b = self.rgb
         hsv = list(cm.rgb_to_hsv(r, g, b))
         if hsv[1] < EPS or hsv[2] < EPS:
-            hsv[0] = self.hue
+            hsv[0] = self.hue                      # оттенок серого не определён
         else:
             self.hue = hsv[0]
-        hls = list(cm.rgb_to_hls(r, g, b))
-        if hls[2] < EPS or hls[1] < EPS or hls[1] > 100 - EPS:
-            hls[0] = self.hue
+        if hsv[2] < EPS:
+            hsv[1] = self.sat                      # у чёрного S не определена: не прыгаем влево
+        else:
+            self.sat = hsv[1]
         values = {"RGB": [r, g, b], "CMYK": list(cm.rgb_to_cmyk(r, g, b)),
-                  "HSV": hsv, "HLS": hls}
+                  "HSV": hsv}
 
         self._lock = True
         try:
