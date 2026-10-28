@@ -6,9 +6,10 @@
     HSV  : H 0..360, S, V 0..100 (%)
 """
 
+EPS = 1e-6
+
 
 def _hue(r, g, b, mx, mn):
-    """Общая формула оттенка для HSV. r, g, b в диапазоне 0..1."""
     d = mx - mn
     if d == 0:
         return 0.0
@@ -22,7 +23,6 @@ def _hue(r, g, b, mx, mn):
 
 
 def _from_hue(h, c, m):
-    """По оттенку h, цветности c и смещению m возвращает RGB (0..255)."""
     h = h % 360
     x = c * (1 - abs((h / 60) % 2 - 1))
     if h < 60:
@@ -41,35 +41,47 @@ def _from_hue(h, c, m):
 
 
 def rgb_to_cmyk(r, g, b):
-    r, g, b = r / 255, g / 255, b / 255
-    k = 1 - max(r, g, b)
-    if k >= 1:
+    r_norm, g_norm, b_norm = r / 255.0, g / 255.0, b / 255.0
+    mx = max(r_norm, g_norm, b_norm)
+    k = 1.0 - mx
+    
+    
+    if k >= 1.0 - EPS or mx < EPS:
         return 0.0, 0.0, 0.0, 100.0
-    c = (1 - r - k) / (1 - k)
-    m = (1 - g - k) / (1 - k)
-    y = (1 - b - k) / (1 - k)
-    return c * 100, m * 100, y * 100, k * 100
+        
+    c = (1.0 - r_norm - k) / (1.0 - k) * 100
+    m = (1.0 - g_norm - k) / (1.0 - k) * 100
+    y = (1.0 - b_norm - k) / (1.0 - k) * 100
+    return clamp(c, 0, 100), clamp(m, 0, 100), clamp(y, 0, 100), clamp(k * 100, 0, 100)
 
 
 def cmyk_to_rgb(c, m, y, k):
-    c, m, y, k = c / 100, m / 100, y / 100, k / 100
-    return (255 * (1 - c) * (1 - k),
-            255 * (1 - m) * (1 - k),
-            255 * (1 - y) * (1 - k))
+    c = clamp(c, 0, 100) / 100.0
+    m = clamp(m, 0, 100) / 100.0
+    y = clamp(y, 0, 100) / 100.0
+    k = clamp(k, 0, 100) / 100.0
+    
+    r = 255 * (1 - c) * (1 - k)
+    g = 255 * (1 - m) * (1 - k)
+    b = 255 * (1 - y) * (1 - k)
+    return clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0, 255)
 
 
 def rgb_to_hsv(r, g, b):
-    r, g, b = r / 255, g / 255, b / 255
-    mx, mn = max(r, g, b), min(r, g, b)
-    h = _hue(r, g, b, mx, mn)
-    s = 0.0 if mx == 0 else (mx - mn) / mx
+    r_norm, g_norm, b_norm = r / 255.0, g / 255.0, b / 255.0
+    mx, mn = max(r_norm, g_norm, b_norm), min(r_norm, g_norm, b_norm)
+    h = _hue(r_norm, g_norm, b_norm, mx, mn)
+    s = 0.0 if mx < EPS else (mx - mn) / mx
     return h, s * 100, mx * 100
 
 
 def hsv_to_rgb(h, s, v):
-    s, v = s / 100, v / 100
+    h = h % 360
+    s = clamp(s, 0, 100) / 100.0
+    v = clamp(v, 0, 100) / 100.0
     c = v * s
-    return _from_hue(h, c, v - c)
+    r, g, b = _from_hue(h, c, v - c)
+    return clamp(r, 0, 255), clamp(g, 0, 255), clamp(b, 0, 255)
 
 
 def clamp(v, lo, hi):

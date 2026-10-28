@@ -15,7 +15,6 @@ TITLES = {"RGB": "RGB", "CMYK": "CMYK", "HSV": "HSV"}
 TO_RGB = {"RGB": lambda *v: v, "CMYK": cm.cmyk_to_rgb, "HSV": cm.hsv_to_rgb}
 
 PAL = 200
-EPS = 1e-6
 
 
 class App(tk.Tk):
@@ -28,6 +27,8 @@ class App(tk.Tk):
         self.rgb = [52.0, 152.0, 219.0]
         self.hue = 204.0
         self.sat = 74.0
+        self.cmyk = [76.0, 31.0, 0.0, 14.0]
+        
         self._lock = False
         self._pal_hue = None
         self.scales, self.entries, self.vars = {}, {}, {}
@@ -43,6 +44,7 @@ class App(tk.Tk):
         right = ttk.Frame(self)
         right.grid(row=0, column=1, sticky="n", **pad)
 
+        
         self.swatch = tk.Canvas(left, width=PAL + 20, height=60, highlightthickness=1,
                                 highlightbackground="#888")
         self.swatch.grid(row=0, column=0, columnspan=2, pady=(0, 6))
@@ -53,6 +55,7 @@ class App(tk.Tk):
         hex_e.bind("<Return>", self._on_hex)
         hex_e.bind("<FocusOut>", self._on_hex)
 
+        
         self.sv = tk.Canvas(left, width=PAL, height=PAL, cursor="crosshair",
                             highlightthickness=1, highlightbackground="#888")
         self.sv.grid(row=2, column=0, columnspan=2, pady=(10, 4))
@@ -75,6 +78,7 @@ class App(tk.Tk):
         ttk.Button(left, text="Выбрать цвет…", command=self._dialog).grid(
             row=4, column=0, columnspan=2, pady=(8, 0), sticky="ew")
 
+        
         self.frames = {}
         for i, name in enumerate(("RGB", "CMYK", "HSV")):
             fr = ttk.LabelFrame(right, text=TITLES[name])
@@ -96,8 +100,8 @@ class App(tk.Tk):
             en.bind("<FocusOut>", lambda _e, m=model: self._on_entry(m, final=True))
             self.scales[(model, i)], self.entries[(model, i)], self.vars[(model, i)] = sc, en, var
 
+    
     def _read(self, model, final):
-        """Читает значения модели из полей ввода; None, если текст некорректен."""
         vals = []
         for i, (_c, lo, hi, _l) in enumerate(MODELS[model]):
             try:
@@ -151,29 +155,53 @@ class App(tk.Tk):
 
     
     def set_from(self, model, vals, source, kind):
-        """Задан цвет в модели model -> пересчитываем RGB и обновляем остальное."""
         if model == "HSV":
             self.hue = vals[0]
             self.sat = vals[1]
+        elif model == "CMYK":
+            self.cmyk = list(vals)
+
         r, g, b = TO_RGB[model](*vals)
         self.rgb = [cm.clamp(r, 0, 255), cm.clamp(g, 0, 255), cm.clamp(b, 0, 255)]
-        self.refresh(source, kind)
+        self.refresh(source, kind, own=(model, list(vals)))
 
-    def refresh(self, source, kind):
-        """Обновляет все виджеты. Модель-источник: при вводе текста не трогаем поля
-        (чтобы не мешать печатать), при движении ползунка не трогаем ползунки."""
+    def refresh(self, source, kind, own=None):
         r, g, b = self.rgb
-        hsv = list(cm.rgb_to_hsv(r, g, b))
-        if hsv[1] < EPS or hsv[2] < EPS:
-            hsv[0] = self.hue
+
+        
+        if own is not None and own[0] == "HSV":
+            hsv = list(own[1])
         else:
-            self.hue = hsv[0]
-        if hsv[2] < EPS:
-            hsv[1] = self.sat
+            hsv = list(cm.rgb_to_hsv(r, g, b))
+            if hsv[2] < cm.EPS:
+                hsv[0] = self.hue
+                hsv[1] = self.sat
+            elif hsv[1] < cm.EPS:
+                hsv[0] = self.hue
+            else:
+                self.hue = hsv[0]
+                self.sat = hsv[1]
+
+        
+        if own is not None and own[0] == "CMYK":
+            cmyk = list(own[1])
         else:
-            self.sat = hsv[1]
-        values = {"RGB": [r, g, b], "CMYK": list(cm.rgb_to_cmyk(r, g, b)),
-                  "HSV": hsv}
+            if hsv[2] < cm.EPS:
+                cmyk = [self.cmyk[0], self.cmyk[1], self.cmyk[2], 100.0]
+            else:
+                cmyk = list(cm.rgb_to_cmyk(r, g, b))
+                self.cmyk = cmyk
+
+        values = {
+            "RGB": [r, g, b],
+            "CMYK": cmyk,
+            "HSV": hsv
+        }
+        
+        if own is not None:
+            values[own[0]] = list(own[1])
+            if own[0] == "CMYK":
+                self.cmyk = list(own[1])
 
         self._lock = True
         try:
