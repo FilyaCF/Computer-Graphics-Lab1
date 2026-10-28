@@ -167,8 +167,6 @@ class App(tk.Tk):
 
     def refresh(self, source, kind, own=None):
         r, g, b = self.rgb
-
-        
         if own is not None and own[0] == "HSV":
             hsv = list(own[1])
         else:
@@ -182,14 +180,23 @@ class App(tk.Tk):
                 self.hue = hsv[0]
                 self.sat = hsv[1]
 
-        
         if own is not None and own[0] == "CMYK":
             cmyk = list(own[1])
+            self.cmyk = cmyk
         else:
             if hsv[2] < cm.EPS:
                 cmyk = [self.cmyk[0], self.cmyk[1], self.cmyk[2], 100.0]
             else:
-                cmyk = list(cm.rgb_to_cmyk(r, g, b))
+                # Считаем целевые значения по формуле
+                target_cmyk = list(cm.rgb_to_cmyk(r, g, b))
+                
+                # Плавная интерполяция (lerp) между старыми значениями CMYK и новыми, 
+                # чтобы ползунки не прыгали резко, а мягко догоняли цвет (коэффициент 0.4 делает движение плавным)
+                alpha = 0.4 
+                cmyk = [
+                    round(old + (target - old) * alpha, 1) 
+                    for old, target in zip(self.cmyk, target_cmyk)
+                ]
                 self.cmyk = cmyk
 
         values = {
@@ -235,7 +242,6 @@ class App(tk.Tk):
         self.sv.coords(self.sv_mark, x - 6, y - 6, x + 6, y + 6)
         hx = h / 360 * (PAL - 1)
         self.hbar.coords(self.h_mark, hx - 2, 0, hx + 2, 20)
-
 
 if __name__ == "__main__":
     App().mainloop()
